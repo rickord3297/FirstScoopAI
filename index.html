@@ -1,196 +1,431 @@
-// Replace this in your script section:
-
-// News API key - replace with your actual key
-const NEWS_API_KEY = 'YOUR_NEWS_API_KEY';  // You need a valid API key from newsapi.org
-
-// Modify the fetchAndDisplayArticles function to handle CORS issues and valid parameters
-const fetchAndDisplayArticles = async (selectedTopic) => {
-    loadingIndicator.classList.remove('hidden');
-    errorContainer.classList.add('hidden');
-    articlePreviewsContainer.innerHTML = ''; // Clear previous articles
-
-    let apiUrl = '';
-    let topicName = '';
-    
-    // For free plan, you need to use a proxy server or backend API
-    // This won't work directly in the browser due to CORS restrictions
-    const baseUrl = 'https://newsapi.org/v2/';
-    
-    switch (selectedTopic) {
-        case 'ai':
-            apiUrl = `${baseUrl}everything?q=artificial%20intelligence%20OR%20AI&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
-            // Don't use the sources parameter as it may have invalid IDs
-            topicName = "Artificial Intelligence";
-            break;
-        case 'mac':
-            apiUrl = `${baseUrl}everything?q=macbook%20OR%20imac%20OR%20apple&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
-            topicName = "Mac";
-            break;
-        case 'sports':
-            apiUrl = `${baseUrl}top-headlines?country=us&category=sports&apiKey=${NEWS_API_KEY}`;
-            topicName = "Sports";
-            break;
-        case 'all':
-        default:
-            apiUrl = `${baseUrl}top-headlines?country=us&apiKey=${NEWS_API_KEY}`;
-            topicName = "All Topics";
-            break;
-    }
-
-    try {
-        console.log("Attempting to fetch from:", apiUrl); 
-        
-        // For demonstration purposes - this direct fetch WON'T work with the free plan
-        // You need a backend proxy or server-side API to make this request
-        const response = await fetch(apiUrl);
-        
-        if (!response.ok) {
-            throw new Error(`Failed to fetch ${topicName} articles: ${response.status} - ${response.statusText}`);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>First Scoop AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <style>
+        /* Default styles for the reading schema */
+        .reading {
+            --background-color: #f8f8f2;
+            --text-color: #2c3e50;
+            --link-color: #3498db;
         }
-        
-        const data = await response.json();
-        
-        if (data.status === 'error') {
-            throw new Error(`News API Error: ${data.message}`);
+        .reading body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+        .reading h1, .reading h2, .reading h3 {
+            color: var(--text-color);
+        }
+        .reading a {
+            color: var(--link-color);
         }
 
-        if (data.articles && data.articles.length > 0) {
-            data.articles.forEach(article => {
-                try {
-                    if (article && article.title) {  // Only process articles with at least a title
-                        const articleElement = createArticleElement(article);
-                        articlePreviewsContainer.appendChild(articleElement);
-                    }
-                } catch (e) {
-                    console.error("Error creating article element:", e, article);
+        /* Default styles for the dark schema */
+        .dark {
+            --background-color: #121212;
+            --text-color: #F9FAFB;
+            --link-color: #93c5fd;
+        }
+        .dark body{
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+         .dark h1, .dark h2, .dark h3 {
+            color: var(--text-color);
+        }
+        .dark a {
+            color: var(--link-color);
+        }
+
+        /* Default styles for the light schema */
+        .light {
+            --background-color: #f9fafb;
+            --text-color: #1f2937;
+            --link-color: #3b82f6;
+        }
+        .light body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+        .light h1, .light h2, .light h3 {
+            color: var(--text-color);
+        }
+        .light a {
+            color: var(--link-color);
+        }
+
+        /* Default Custom schema */
+        .custom {
+            --background-color: #f0f4f8;
+            --text-color: #2c3e50;
+            --link-color: #3498db;
+        }
+        .custom body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+        .custom h1, .custom h2, .custom h3 {
+            color: var(--text-color);
+        }
+        .custom a {
+            color: var(--link-color);
+        }
+
+        .article-card {
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+
+        .article-card h3 {
+             color: var(--text-color);
+        }
+        .article-card p{
+            color: var(--text-color);
+        }
+
+    </style>
+</head>
+<body class="bg-background p-4 sm:p-8 font-sans">
+    <div class="max-w-4xl mx-auto space-y-6">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+            <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-black">
+                First Scoop AI
+            </h1>
+            <div class="flex gap-4 flex-wrap justify-center">
+                <select id="topic-dropdown" class="w-[180px] bg-white text-black border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    <option value="all">All Topics</option>
+                    <option value="ai">Artificial Intelligence</option>
+                    <option value="mac">Mac</option>
+                    <option value="sports">Sports</option>
+                </select>
+                <select id="schema-dropdown" class="w-[180px] bg-white text-black border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                    <option value="reading">Reading</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+        </div>
+        <hr class="bg-purple-500/30 border-none h-1" />
+        <section id="article-previews" class="space-y-6">
+            <div id="loading-indicator" class="flex justify-center items-center py-8 hidden">
+                <svg class="animate-spin h-8 w-8 text-purple-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+            <div id="error-container" class="space-y-4 hidden">
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                    <strong class="font-bold">Error:</strong>
+                    <span class="block sm:inline" id="error-message"></span>
+                </div>
+            </div>
+        </section>
+        <div id="article-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-auto p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 id="modal-title" class="text-2xl font-bold"></h2>
+                    <button id="close-modal" class="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                    Source: <span id="modal-source"></span>
+                    <span id="modal-author"></span> <a id="modal-original-link" href="#" target="_blank" rel="noopener noreferrer" class="ml-2 text-blue-500 hover:underline">Original Article</a>
+                </div>
+                <div id="modal-content" class="prose dark:prose-invert max-w-none"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-color-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 space-y-4">
+            <h2 class="text-xl font-semibold">Customize Theme Colors</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <div>
+                    <label for="bg-color" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Background Color</label>
+                    <input type="color" id="bg-color" value="#f0f4f8" class="mt-1 w-full h-10 rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="text-color" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Text Color</label>
+                    <input type="color" id="text-color" value="#2c3e50" class="mt-1 w-full h-10 rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="link-color" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Link Color</label>
+                    <input type="color" id="link-color" value="#3498db" class="mt-1 w-full h-10 rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+            <div class="flex justify-end gap-4">
+                <button id="cancel-custom-color" class="bg-gray-300 dark:bg-gray-500 text-gray-700 dark:text-gray-300 rounded-md py-2 px-4 hover:bg-gray-400 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500">Cancel</button>
+                <button id="apply-custom-color" class="bg-blue-500 text-white rounded-md py-2 px-4 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const articlePreviewsContainer = document.getElementById('article-previews');
+        const topicDropdown = document.getElementById('topic-dropdown');
+        const schemaDropdown = document.getElementById('schema-dropdown');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const errorContainer = document.getElementById('error-container');
+        const errorMessageDisplay = document.getElementById('error-message');
+        const articleModal = document.getElementById('article-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalSource = document.getElementById('modal-source');
+        const modalAuthor = document.getElementById('modal-author');
+        const modalContent = document.getElementById('modal-content');
+        const closeModal = document.getElementById('close-modal');
+        const modalOriginalLink = document.getElementById('modal-original-link');
+
+        // Get custom color modal elements
+        const customColorModal = document.getElementById('custom-color-modal');
+        const cancelCustomColorButton = document.getElementById('cancel-custom-color');
+        const applyCustomColorButton = document.getElementById('apply-custom-color');
+        const bgColorInput = document.getElementById('bg-color');
+        const textColorInput = document.getElementById('text-color');
+        const linkColorInput = document.getElementById('link-color');
+
+        let customColors = {
+            bgColor: '#f0f4f8',
+            textColor: '#2c3e50',
+            linkColor: '#3498db'
+        };
+
+        // Initialize theme from localStorage or default to light
+        let savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.className = savedTheme;
+        schemaDropdown.value = savedTheme;
+
+        // News API key
+        const NEWS_API_KEY = 'eba824c6afb54b1e8b6d441711f2dd0c';  // ****Replace with your API key****
+        const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/'; // Use a proxy to avoid CORS issues
+
+        // Event listeners
+        topicDropdown.addEventListener('change', () => {
+            fetchAndDisplayArticles(topicDropdown.value);
+        });
+
+        schemaDropdown.addEventListener('change', () => {
+            const selectedTheme = schemaDropdown.value;
+            if (selectedTheme === 'custom') {
+                customColorModal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.documentElement.className = selectedTheme;
+                localStorage.setItem('theme', selectedTheme);
+                //remove custom inline styles when switching from custom to another theme.
+                if(selectedTheme !== 'custom'){
+                    document.documentElement.style.removeProperty('--background-color');
+                    document.documentElement.style.removeProperty('--text-color');
+                    document.documentElement.style.removeProperty('--link-color');
                 }
-            });
-        } else {
-            articlePreviewsContainer.innerHTML = `
-                <div class="text-gray-500 dark:text-gray-400 py-8 text-center">
-                    No articles found for ${topicName}.
-                </div>`;
+
+            }
+        });
+
+        closeModal.addEventListener('click', () => {
+            articleModal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        });
+
+        // Close modal when clicking outside of it
+        articleModal.addEventListener('click', (e) => {
+            if (e.target === articleModal) {
+                articleModal.classList.add('hidden');
+                document.body.style.overflow = 'auto';
+            }
+        });
+
+        // Custom color modal event listeners
+        cancelCustomColorButton.addEventListener('click', () => {
+            customColorModal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+            schemaDropdown.value = localStorage.getItem('theme') || 'light';
+        });
+
+        applyCustomColorButton.addEventListener('click', () => {
+            customColors = {
+                bgColor: bgColorInput.value,
+                textColor: textColorInput.value,
+                linkColor: linkColorInput.value
+            };
+            applyCustomTheme();
+            customColorModal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+            localStorage.setItem('theme', 'custom');
+            schemaDropdown.value = 'custom';
+        });
+
+        function applyCustomTheme() {
+            document.documentElement.className = 'custom';
+            document.documentElement.style.setProperty('--background-color', customColors.bgColor);
+            document.documentElement.style.setProperty('--text-color', customColors.textColor);
+            document.documentElement.style.setProperty('--link-color', customColors.linkColor);
+            localStorage.setItem('customColors', JSON.stringify(customColors));
+
         }
-    } catch (error) {
-        errorContainer.classList.remove('hidden');
-        errorMessageDisplay.textContent = error.message;
-        
-        // Add a more user-friendly message about CORS issues
-        if (error.message.includes('Failed to fetch')) {
-            errorMessageDisplay.textContent += 
-                " This may be due to CORS restrictions. NewsAPI's free plan doesn't allow browser requests. Consider setting up a server-side proxy or using our demo data.";
-            
-            // Display demo data for demonstration purposes
-            displayDemoArticles(selectedTopic);
+
+        const fetchAndDisplayArticles = async (selectedTopic) => {
+            loadingIndicator.classList.remove('hidden');
+            errorContainer.classList.add('hidden');
+            articlePreviewsContainer.innerHTML = ''; // Clear previous articles
+
+            let apiUrl = '';
+            let topicName = '';
+            let sources = ''; // to store sources
+
+             // Define sources for each topic
+            const topicSources = {
+                ai: 'wired,techcrunch,the-verge', // Example sources
+                mac: 'macrumors,apple-insider,9to5mac',
+                sports: 'espn,bleacher-report,the-athletic',
+            };
+
+
+            switch (selectedTopic) {
+                case 'ai':
+                    apiUrl = `${CORS_PROXY}https://newsapi.org/v2/everything?q=artificial%20intelligence%20OR%20AI&sortBy=publishedAt&apiKey=${NEWS_API_KEY}&sources=${topicSources.ai}`;
+                    topicName = "Artificial Intelligence";
+                    break;
+                case 'mac':
+                    apiUrl = `${CORS_PROXY}https://newsapi.org/v2/everything?q=macbook%20OR%20imac&sortBy=publishedAt&apiKey=${NEWS_API_KEY}&sources=${topicSources.mac}`;
+                    topicName = "Mac";
+                    break;
+                case 'sports':
+                    apiUrl = `${CORS_PROXY}https://newsapi.org/v2/top-headlines?country=us&category=sports&apiKey=${NEWS_API_KEY}`;
+                    topicName = "Sports";
+                    break;
+                case 'all':
+                default:
+                    apiUrl = `${CORS_PROXY}https://newsapi.org/v2/top-headlines?country=us&apiKey=${NEWS_API_KEY}`;
+                    topicName = "All Topics";
+                    break;
+            }
+
+
+
+            try {
+                console.log("Fetching data from:", apiUrl); // Log the URL
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    console.error("Fetch failed:", response.status, response.statusText);
+                    throw new Error(`Failed to fetch ${topicName} articles: ${response.status} - ${response.statusText}`);
+                }
+                const responseText = await response.text(); // Get the raw response text
+                console.log("Raw response data:", responseText); // Log the raw response
+
+                try {
+                    const data = JSON.parse(responseText); // Parse the text as JSON
+                    // Check for errors in the response itself.
+                    if (data.status === 'error') {
+                        console.error("News API error:", data.message);
+                        throw new Error(`News API Error: ${data.message}`);
+                    }
+
+                    if (data.articles && data.articles.length > 0) {
+                        data.articles.forEach(article => {
+                            try {
+                                const articleElement = createArticleElement(article);
+                                articlePreviewsContainer.appendChild(articleElement);
+                            } catch (e) {
+                                console.error("Error creating article element:", e, article); // Log the error and the article data
+                                // Optionally, you could display a user-friendly message for this specific article
+                                // articlePreviewsContainer.innerHTML += `<div class="text-gray-500 dark:text-gray-400 py-8 text-center">Error displaying this article.</div>`;
+                            }
+                        });
+                    } else {
+                        articlePreviewsContainer.innerHTML = `<div class="text-gray-500 dark:text-gray-400 py-8 text-center">No articles found for ${topicName}.</div>`;
+                    }
+                } catch (parseError) {
+                    console.error("Error parsing JSON:", parseError, responseText);
+                    throw new Error(`Error parsing JSON: ${parseError.message}.  Raw response: ${responseText}`);
+                }
+
+            } catch (error) {
+                errorContainer.classList.remove('hidden');
+                errorMessageDisplay.textContent = error.message;
+                console.error("Error fetching or processing articles:", error); // Log the error
+            } finally {
+                loadingIndicator.classList.add('hidden');
+            }
+        };
+
+        const createArticleElement = (article) => {
+            try{
+                const articleDiv = document.createElement('div');
+                articleDiv.className = "article-card rounded-lg shadow-md overflow-hidden transition-all duration-200 hover:shadow-lg mb-6 cursor-pointer";
+                articleDiv.addEventListener('click', () => openArticleModal(article));
+
+                // Use article.source.name instead of article.source
+                const authorElement = article.author ? `<p class="text-sm text-gray-500 dark:text-gray-400">By ${article.author}</p>` : '';
+                const sourceName = article.source && article.source.name ? article.source.name : 'Unknown Source';
+                const imageElement = article.urlToImage ? `<img src="${article.urlToImage}" alt="${article.title}" class="w-full h-48 object-cover">` : `<div class="w-full h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400">No Image Available</div>`;
+
+
+                articleDiv.innerHTML = `
+                    ${imageElement}
+                    <div class="p-6 space-y-4">
+                        <h3 class="text-2xl font-bold">${article.title}</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Source: ${sourceName}</p>
+                        ${authorElement}
+                        <p class="text-gray-700 dark:text-gray-300">${article.description || 'No description available.'}</p>
+                    </div>
+                `;
+                return articleDiv;
+            }
+            catch(error){
+                console.error("Error in createArticleElement", error);
+                throw error; // re-throw the error so it's caught in fetchAndDisplayArticles
+            }
+
+        };
+
+        const openArticleModal = (article) => {
+            modalTitle.textContent = article.title;
+            modalSource.textContent = article.source.name; // Use article.source.name here as well
+            modalAuthor.textContent = article.author ? `By ${article.author}` : '';
+            modalOriginalLink.href = article.url;
+
+             // Format the content with paragraphs.  If article.content is not available, use description
+            const contentToDisplay = article.content || article.description || "No content available.";
+            const formattedContent = contentToDisplay
+                .split('\n\n')
+                .filter(para => para.trim() !== '')
+                .map(para => `<p class="mb-4">${para.trim()}</p>`)
+                .join('');
+            modalContent.innerHTML = `<div class="space-y-4">${formattedContent}</div>`;
+
+            articleModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        };
+
+        // Apply custom theme on page load if it is set
+        if (savedTheme === 'custom') {
+            const storedCustomColors = localStorage.getItem('customColors');
+            if (storedCustomColors) {
+                customColors = JSON.parse(storedCustomColors);
+                bgColorInput.value = customColors.bgColor;
+                textColorInput.value = customColors.textColor;
+                linkColorInput.value = customColors.linkColor;
+                applyCustomTheme();
+            }
         }
-        
-        console.error("Error fetching or processing articles:", error);
-    } finally {
-        loadingIndicator.classList.add('hidden');
-    }
-};
 
-// Add a function to display demo data when the API can't be accessed
-function displayDemoArticles(topic) {
-    const demoArticles = {
-        ai: [
-            {
-                title: "The Latest Advancements in ChatGPT Technology",
-                description: "OpenAI has released a new version of ChatGPT with improved reasoning capabilities and reduced hallucinations.",
-                urlToImage: "https://via.placeholder.com/400x200?text=AI+News",
-                author: "Tech Reporter",
-                source: { name: "Tech News" },
-                content: "OpenAI's latest model shows significant improvements in reasoning tasks and demonstrates enhanced capabilities in mathematics and coding problems.\n\nResearchers attribute the improvements to new training methodologies and architectural changes in the model."
-            },
-            {
-                title: "AI Regulation Framework Proposed by International Coalition",
-                description: "A coalition of countries has proposed a new framework for regulating artificial intelligence development.",
-                urlToImage: "https://via.placeholder.com/400x200?text=AI+Regulation",
-                author: "Policy Expert",
-                source: { name: "Global Tech Review" },
-                content: "The proposed framework addresses concerns about AI safety while promoting innovation.\n\nKey provisions include mandatory transparency reports for large AI systems and ethical guidelines for AI development."
+        // Initial fetch
+        document.addEventListener('DOMContentLoaded', () => {
+            if (NEWS_API_KEY === 'YOUR_NEWS_API_KEY') {
+                errorContainer.classList.remove('hidden');
+                errorMessageDisplay.textContent = 'Please replace "YOUR_NEWS_API_KEY" with your actual News API key!';
+                return;
             }
-        ],
-        mac: [
-            {
-                title: "Apple Announces New MacBook Pro with M3 Pro and M3 Max Chips",
-                description: "The latest MacBook Pro models feature improved performance and battery life with the new M3 series chips.",
-                urlToImage: "https://via.placeholder.com/400x200?text=MacBook+Pro",
-                author: "Apple Insider",
-                source: { name: "Mac News" },
-                content: "Apple's new MacBook Pro models show significant performance improvements over the previous generation.\n\nThe M3 Pro and M3 Max chips offer up to 40% faster CPU performance and improved GPU capabilities for professional workflows."
-            },
-            {
-                title: "macOS Sequoia Features Leaked Ahead of WWDC",
-                description: "Rumors suggest the next version of macOS will include major AI features and redesigned system applications.",
-                urlToImage: "https://via.placeholder.com/400x200?text=macOS+News",
-                author: "Mac Reporter",
-                source: { name: "Apple Rumors" },
-                content: "According to sources familiar with Apple's plans, macOS Sequoia will integrate AI capabilities across the system.\n\nThe update is expected to include a redesigned Finder app and enhanced collaboration features."
-            }
-        ],
-        sports: [
-            {
-                title: "Lakers Win NBA Championship in Thrilling Game 7",
-                description: "The Los Angeles Lakers defeated the Boston Celtics in a historic Game 7 to win their 18th NBA Championship.",
-                urlToImage: "https://via.placeholder.com/400x200?text=NBA+Finals",
-                author: "Sports Writer",
-                source: { name: "Sports News" },
-                content: "In a game that came down to the final seconds, the Lakers secured their record-breaking 18th championship.\n\nThe team's star player was named Finals MVP after averaging 32 points per game throughout the series."
-            },
-            {
-                title: "Olympic Committee Announces New Sports for 2028 Games",
-                description: "The 2028 Los Angeles Olympics will feature several new sports, including cricket and flag football.",
-                urlToImage: "https://via.placeholder.com/400x200?text=Olympics+News",
-                author: "Olympic Correspondent",
-                source: { name: "Sports International" },
-                content: "The addition of cricket and flag football is expected to broaden the appeal of the Olympics to new audiences.\n\nThe Los Angeles organizing committee has expressed excitement about showcasing these sports on the global stage."
-            }
-        ],
-        all: [
-            {
-                title: "Global Climate Summit Reaches Historic Agreement",
-                description: "World leaders have agreed to new emissions targets at the latest climate summit.",
-                urlToImage: "https://via.placeholder.com/400x200?text=Climate+News",
-                author: "Environmental Reporter",
-                source: { name: "World News" },
-                content: "The agreement includes commitments to reduce carbon emissions by 50% by 2035.\n\nDeveloping nations will receive financial support to transition to renewable energy sources."
-            },
-            {
-                title: "SpaceX Successfully Launches First Crewed Mission to Mars",
-                description: "The historic mission marks the first time humans have traveled to the red planet.",
-                urlToImage: "https://via.placeholder.com/400x200?text=Space+Exploration",
-                author: "Science Correspondent",
-                source: { name: "Space News" },
-                content: "The crew of four astronauts will conduct experiments and explore potential sites for a future Mars base.\n\nThe mission is expected to last approximately two years, including travel time and surface operations."
-            }
-        ]
-    };
-
-    // Use the appropriate demo data set based on the selected topic
-    const articlesToDisplay = demoArticles[topic] || demoArticles.all;
-    
-    articlesToDisplay.forEach(article => {
-        const articleElement = createArticleElement(article);
-        articlePreviewsContainer.appendChild(articleElement);
-    });
-    
-    // Add a note about using demo data
-    const demoNote = document.createElement('div');
-    demoNote.className = "text-center p-4 my-4 bg-yellow-100 text-yellow-800 rounded-lg";
-    demoNote.innerHTML = "<strong>Note:</strong> Displaying demo data. To see real articles, you'll need a NewsAPI key and a server-side proxy.";
-    articlePreviewsContainer.prepend(demoNote);
-}
-
-// Update the initialization code
-document.addEventListener('DOMContentLoaded', () => {
-    if (NEWS_API_KEY === 'YOUR_NEWS_API_KEY') {
-        errorContainer.classList.remove('hidden');
-        errorMessageDisplay.textContent = 'Please replace "YOUR_NEWS_API_KEY" with your actual News API key in the code. Note that NewsAPI\'s free plan requires server-side requests.';
-        
-        // Show demo data so the app is still functional
-        displayDemoArticles('all');
-        return;
-    }
-    fetchAndDisplayArticles(topicDropdown.value);
-});
+            fetchAndDisplayArticles(topicDropdown.value);
+        });
+    </script>
+</body>
+</html>
