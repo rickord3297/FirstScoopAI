@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic News App</title>
+    <title>First Scoop AI</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
     <style>
@@ -310,31 +310,42 @@
 
 
             try {
+                console.log("Fetching data from:", apiUrl); // Log the URL
                 const response = await fetch(apiUrl);
                 if (!response.ok) {
+                    console.error("Fetch failed:", response.status, response.statusText);
                     throw new Error(`Failed to fetch ${topicName} articles: ${response.status} - ${response.statusText}`);
                 }
-                const data = await response.json();
+                const responseText = await response.text(); // Get the raw response text
+                console.log("Raw response data:", responseText); // Log the raw response
 
-                // Check for errors in the response itself.
-                if (data.status === 'error') {
-                    throw new Error(`News API Error: ${data.message}`);
+                try {
+                    const data = JSON.parse(responseText); // Parse the text as JSON
+                    // Check for errors in the response itself.
+                    if (data.status === 'error') {
+                        console.error("News API error:", data.message);
+                        throw new Error(`News API Error: ${data.message}`);
+                    }
+
+                    if (data.articles && data.articles.length > 0) {
+                        data.articles.forEach(article => {
+                            try {
+                                const articleElement = createArticleElement(article);
+                                articlePreviewsContainer.appendChild(articleElement);
+                            } catch (e) {
+                                console.error("Error creating article element:", e, article); // Log the error and the article data
+                                // Optionally, you could display a user-friendly message for this specific article
+                                // articlePreviewsContainer.innerHTML += `<div class="text-gray-500 dark:text-gray-400 py-8 text-center">Error displaying this article.</div>`;
+                            }
+                        });
+                    } else {
+                        articlePreviewsContainer.innerHTML = `<div class="text-gray-500 dark:text-gray-400 py-8 text-center">No articles found for ${topicName}.</div>`;
+                    }
+                } catch (parseError) {
+                    console.error("Error parsing JSON:", parseError, responseText);
+                    throw new Error(`Error parsing JSON: ${parseError.message}.  Raw response: ${responseText}`);
                 }
 
-                if (data.articles && data.articles.length > 0) {
-                    data.articles.forEach(article => {
-                        try {
-                            const articleElement = createArticleElement(article);
-                            articlePreviewsContainer.appendChild(articleElement);
-                        } catch (e) {
-                            console.error("Error creating article element:", e, article); // Log the error and the article data
-                            // Optionally, you could display a user-friendly message for this specific article
-                            // articlePreviewsContainer.innerHTML += `<div class="text-gray-500 dark:text-gray-400 py-8 text-center">Error displaying this article.</div>`;
-                        }
-                    });
-                } else {
-                    articlePreviewsContainer.innerHTML = `<div class="text-gray-500 dark:text-gray-400 py-8 text-center">No articles found for ${topicName}.</div>`;
-                }
             } catch (error) {
                 errorContainer.classList.remove('hidden');
                 errorMessageDisplay.textContent = error.message;
