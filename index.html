@@ -296,40 +296,60 @@
 
             switch (selectedTopic) {
                 case 'ai':
-                    rssUrl = 'https://www.technologyreview.com/feed/';
-                    topicName = "Artificial Intelligence (MIT Technology Review)";
+                    rssUrl = 'https://www.technologyreview.com/feed/';  // MIT Technology Review
+                    rssUrl += ',https://www.wired.com/feed/rss';        // Wired
+                    topicName = "Artificial Intelligence";
                     break;
                 case 'mac':
-                    rssUrl = 'https://www.macrumors.com/feed/';
-                    topicName = "Mac (MacRumors)";
+                    rssUrl = 'https://www.macrumors.com/feed/';      // MacRumors
+                    rssUrl += ',https://www.theverge.com/rss/index.xml';  // The Verge
+                    topicName = "Mac";
                     break;
                 case 'sports':
-                   rssUrl = 'https://www.cbssports.com/rss/headlines/';
-                    topicName = "Sports (CBS Sports)";
+                    rssUrl = 'https://www.cbssports.com/rss/headlines/';  // CBS Sports
+                    rssUrl += ',https://www.espn.com/espn/rss/news';    // ESPN
+                    topicName = "Sports";
                     break;
                 case 'all':
                 default:
-                    rssUrl = 'https://www.reuters.com/arc/outbound/rss/0,,M.xml';
-                    topicName = "Top Stories (Reuters)";
+                    rssUrl = 'https://www.reuters.com/arc/outbound/rss/0,,M.xml';  // Reuters
+                    rssUrl += ',http://rss.cnn.com/rss/cnn_topstories.rss'; // CNN Top Stories
+                    topicName = "Top Stories";
                     break;
             }
 
-            try {
-                const items = await fetchRssFeed(rssUrl);
+            const rssUrls = rssUrl.split(',');
+            const allItems = [];
 
-                if (items && items.length > 0) {
-                    items.forEach(item => {
-                        try{
+            try {
+                // Fetch articles from all provided RSS feeds
+                await Promise.all(rssUrls.map(async (url) => {
+                    const items = await fetchRssFeed(url);
+                    allItems.push(...items);
+                }));
+
+                if (allItems && allItems.length > 0) {
+                    // Combine and sort articles by publication date
+                    allItems.sort((a, b) => {
+                        const dateA = new Date(a.querySelector('pubDate')?.textContent || '');
+                        const dateB = new Date(b.querySelector('pubDate')?.textContent || '');
+                        return dateB.getTime() - dateA.getTime(); // Sort descending
+                    });
+
+                    // Display the articles
+                    allItems.forEach(item => {
+                        try {
                             const articleElement = createArticleElement(item, selectedTopic);
                             articlePreviewsContainer.appendChild(articleElement);
-                        }
-                        catch(e){
-                             console.error("Error creating article element:", e, item);
+                        } catch (e) {
+                            console.error("Error creating article element:", e, item);
                         }
                     });
-                } else {
+                }
+                 else {
                     articlePreviewsContainer.innerHTML = `<div class="text-gray-500 dark:text-gray-400 py-8 text-center">No articles found for ${topicName}.</div>`;
                 }
+
             } catch (error) {
                 errorContainer.classList.remove('hidden');
                 errorMessageDisplay.textContent = `Error fetching ${topicName} articles: ${error.message}`;
@@ -346,45 +366,33 @@
 
             let title, description, pubDate, sourceName, author, link, imageUrl;
 
-             switch (selectedTopic) {
+            // Extract data, handling potential missing elements
+            title = item.querySelector('title')?.textContent || 'No Title';
+            description = item.querySelector('description')?.textContent || 'No description available.';
+            pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
+            link = item.querySelector('link')?.textContent || '#';
+            author = item.querySelector('author')?.textContent || item.querySelector('dc\\:creator')?.textContent || '';
+
+
+            switch (selectedTopic) {
                 case 'ai':
-                    title = item.querySelector('title')?.textContent || 'No Title';
-                    description = item.querySelector('description')?.textContent || 'No description available.';
-                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
-                    sourceName = "MIT Technology Review";
-                    author = item.querySelector('dc\\:creator')?.textContent || '';
-                    link = item.querySelector('link')?.textContent || '#';
+                    sourceName = item.querySelector('source')?.textContent || 'MIT Technology Review, Wired';
                     imageUrl = item.querySelector('enclosure')?.getAttribute('url') || null;
                     break;
                 case 'mac':
-                    title = item.querySelector('title')?.textContent || 'No Title';
-                    description = item.querySelector('description')?.textContent || 'No description available.';
-                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
-                    sourceName = 'MacRumors';
-                    author = item.querySelector('creator')?.textContent || '';
-                    link = item.querySelector('link')?.textContent || '#';
-                    imageUrl = item.querySelector('enclosure')?.getAttribute('url') || null;
+                    sourceName = item.querySelector('source')?.textContent || 'MacRumors, The Verge';
+                     imageUrl = item.querySelector('enclosure')?.getAttribute('url') || null;
                     break;
                 case 'sports':
-                    title = item.querySelector('title')?.textContent || 'No Title';
-                    description = item.querySelector('description')?.textContent || 'No description available.';
-                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
-                    sourceName = 'CBS Sports';
-                    author = item.querySelector('author')?.textContent || '';
-                    link = item.querySelector('link')?.textContent || '#';
+                    sourceName = item.querySelector('source')?.textContent || 'CBS Sports, ESPN';
                     imageUrl = item.querySelector('media\\:content')?.getAttribute('url') || null;
                     break;
                 case 'all':
                 default:
-                    title = item.querySelector('title')?.textContent || 'No Title';
-                    description = item.querySelector('description')?.textContent || 'No description available.';
-                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
-                    sourceName = 'Reuters';
-                    author = item.querySelector('author')?.textContent || '';
-                    link = item.querySelector('link')?.textContent || '#';
+                    sourceName = item.querySelector('source')?.textContent || 'Various Sources';
                     imageUrl = item.querySelector('enclosure')?.getAttribute('url') || null;
                     break;
-             }
+            }
             const authorElement = author ? `<p class="text-sm text-gray-500 dark:text-gray-400">By ${author}</p>` : '';
             const imageElement = imageUrl ? `<img src="${imageUrl}" alt="${title}" class="w-full h-48 object-cover">` : `<div class="w-full h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400">No Image Available</div>`;
 
@@ -401,47 +409,33 @@
         };
 
         const openArticleModal = (item, selectedTopic) => {
-             let title, description, pubDate, sourceName, author, link;
+            let title, description, pubDate, sourceName, author, link;
 
-            switch (selectedTopic) {
+            title = item.querySelector('title')?.textContent || 'No Title';
+            description = item.querySelector('description')?.textContent || 'No description available.';
+            pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
+            link = item.querySelector('link')?.textContent || '#';
+            author = item.querySelector('author')?.textContent || item.querySelector('dc\\:creator')?.textContent || '';
+
+             switch (selectedTopic) {
                 case 'ai':
-                    title = item.querySelector('title')?.textContent || 'No Title';
-                    description = item.querySelector('description')?.textContent || 'No description available.';
-                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
-                    sourceName = "MIT Technology Review";
-                    author = item.querySelector('dc\\:creator')?.textContent || '';
-                    link = item.querySelector('link')?.textContent || '#';
+                    sourceName =  'MIT Technology Review, Wired';
                     break;
                 case 'mac':
-                    title = item.querySelector('title')?.textContent || 'No Title';
-                    description = item.querySelector('description')?.textContent || 'No description available.';
-                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
-                    sourceName = 'MacRumors';
-                    author = item.querySelector('creator')?.textContent || '';
-                    link = item.querySelector('link')?.textContent || '#';
+                     sourceName = 'MacRumors, The Verge';
                     break;
                 case 'sports':
-                    title = item.querySelector('title')?.textContent || 'No Title';
-                    description = item.querySelector('description')?.textContent || 'No description available.';
-                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
-                    sourceName = 'CBS Sports';
-                    author = item.querySelector('author')?.textContent || '';
-                    link = item.querySelector('link')?.textContent || '#';
+                     sourceName = 'CBS Sports, ESPN';
                     break;
                 case 'all':
                 default:
-                    title = item.querySelector('title')?.textContent || 'No Title';
-                    description = item.querySelector('description')?.textContent || 'No description available.';
-                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
-                    sourceName = 'Reuters';
-                    author = item.querySelector('author')?.textContent || '';
-                    link = item.querySelector('link')?.textContent || '#';
+                    sourceName = 'Various Sources';
                     break;
             }
 
             modalTitle.textContent = title;
             modalSource.textContent = sourceName;
-            modalAuthor.textContent = author ? `By ${author}` : '';
+            modalAuthor.textContent =  author ? `By ${author}` : '';
             modalOriginalLink.href = link;
             const formattedContent = description
                 .split('\n\n')
