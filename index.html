@@ -202,9 +202,6 @@
         document.documentElement.className = savedTheme;
         schemaDropdown.value = savedTheme;
 
-        // News API key
-        const NEWS_API_KEY = 'eba824c6afb54b1e8b6d441711f2dd0c';  // ****Replace with your API key****
-        const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/'; // Use a proxy to avoid CORS issues
 
         // Event listeners
         topicDropdown.addEventListener('change', () => {
@@ -271,136 +268,187 @@
 
         }
 
+        // Helper function to fetch and parse RSS feed
+        const fetchRssFeed = async (url) => {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch RSS feed: ${response.status}`);
+                }
+                const text = await response.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(text, "text/xml");
+                const items = Array.from(xmlDoc.querySelectorAll('channel > item'));
+                return items;
+            } catch (error) {
+                console.error("Error fetching RSS feed:", error);
+                throw error; // Re-throw to be caught by fetchAndDisplayArticles
+            }
+        };
+
         const fetchAndDisplayArticles = async (selectedTopic) => {
             loadingIndicator.classList.remove('hidden');
             errorContainer.classList.add('hidden');
             articlePreviewsContainer.innerHTML = ''; // Clear previous articles
 
-            let apiUrl = '';
+            let rssUrl = '';
             let topicName = '';
-            let sources = ''; // to store sources
-
-             // Define sources for each topic
-            const topicSources = {
-                ai: 'wired,techcrunch,the-verge', // Example sources
-                mac: 'macrumors,apple-insider,9to5mac',
-                sports: 'espn,bleacher-report,the-athletic',
-            };
-
 
             switch (selectedTopic) {
                 case 'ai':
-                    apiUrl = `${CORS_PROXY}https://newsapi.org/v2/everything?q=artificial%20intelligence%20OR%20AI&sortBy=publishedAt&apiKey=${NEWS_API_KEY}&sources=${topicSources.ai}`;
-                    topicName = "Artificial Intelligence";
+                    rssUrl = 'https://www.technologyreview.com/feed/';
+                    topicName = "Artificial Intelligence (MIT Technology Review)";
                     break;
                 case 'mac':
-                    apiUrl = `${CORS_PROXY}https://newsapi.org/v2/everything?q=macbook%20OR%20imac&sortBy=publishedAt&apiKey=${NEWS_API_KEY}&sources=${topicSources.mac}`;
-                    topicName = "Mac";
+                    rssUrl = 'https://www.macrumors.com/feed/';
+                    topicName = "Mac (MacRumors)";
                     break;
                 case 'sports':
-                    apiUrl = `${CORS_PROXY}https://newsapi.org/v2/top-headlines?country=us&category=sports&apiKey=${NEWS_API_KEY}`;
-                    topicName = "Sports";
+                   rssUrl = 'https://www.cbssports.com/rss/headlines/';
+                    topicName = "Sports (CBS Sports)";
                     break;
                 case 'all':
                 default:
-                    apiUrl = `${CORS_PROXY}https://newsapi.org/v2/top-headlines?country=us&apiKey=${NEWS_API_KEY}`;
-                    topicName = "All Topics";
+                    rssUrl = 'https://www.reuters.com/arc/outbound/rss/0,,M.xml';
+                    topicName = "Top Stories (Reuters)";
                     break;
             }
 
-
-
             try {
-                console.log("Fetching data from:", apiUrl); // Log the URL
-                const response = await fetch(apiUrl);
-                if (!response.ok) {
-                    console.error("Fetch failed:", response.status, response.statusText);
-                    throw new Error(`Failed to fetch ${topicName} articles: ${response.status} - ${response.statusText}`);
+                const items = await fetchRssFeed(rssUrl);
+
+                if (items && items.length > 0) {
+                    items.forEach(item => {
+                        try{
+                            const articleElement = createArticleElement(item, selectedTopic);
+                            articlePreviewsContainer.appendChild(articleElement);
+                        }
+                        catch(e){
+                             console.error("Error creating article element:", e, item);
+                        }
+                    });
+                } else {
+                    articlePreviewsContainer.innerHTML = `<div class="text-gray-500 dark:text-gray-400 py-8 text-center">No articles found for ${topicName}.</div>`;
                 }
-                const responseText = await response.text(); // Get the raw response text
-                console.log("Raw response data:", responseText); // Log the raw response
-
-                try {
-                    const data = JSON.parse(responseText); // Parse the text as JSON
-                    // Check for errors in the response itself.
-                    if (data.status === 'error') {
-                        console.error("News API error:", data.message);
-                        throw new Error(`News API Error: ${data.message}`);
-                    }
-
-                    if (data.articles && data.articles.length > 0) {
-                        data.articles.forEach(article => {
-                            try {
-                                const articleElement = createArticleElement(article);
-                                articlePreviewsContainer.appendChild(articleElement);
-                            } catch (e) {
-                                console.error("Error creating article element:", e, article); // Log the error and the article data
-                                // Optionally, you could display a user-friendly message for this specific article
-                                // articlePreviewsContainer.innerHTML += `<div class="text-gray-500 dark:text-gray-400 py-8 text-center">Error displaying this article.</div>`;
-                            }
-                        });
-                    } else {
-                        articlePreviewsContainer.innerHTML = `<div class="text-gray-500 dark:text-gray-400 py-8 text-center">No articles found for ${topicName}.</div>`;
-                    }
-                } catch (parseError) {
-                    console.error("Error parsing JSON:", parseError, responseText);
-                    throw new Error(`Error parsing JSON: ${parseError.message}.  Raw response: ${responseText}`);
-                }
-
             } catch (error) {
                 errorContainer.classList.remove('hidden');
-                errorMessageDisplay.textContent = error.message;
-                console.error("Error fetching or processing articles:", error); // Log the error
+                errorMessageDisplay.textContent = `Error fetching ${topicName} articles: ${error.message}`;
+                console.error("Error fetching or processing articles:", error);
             } finally {
                 loadingIndicator.classList.add('hidden');
             }
         };
 
-        const createArticleElement = (article) => {
-            try{
-                const articleDiv = document.createElement('div');
-                articleDiv.className = "article-card rounded-lg shadow-md overflow-hidden transition-all duration-200 hover:shadow-lg mb-6 cursor-pointer";
-                articleDiv.addEventListener('click', () => openArticleModal(article));
+        const createArticleElement = (item, selectedTopic) => {
+            const articleDiv = document.createElement('div');
+            articleDiv.className = "article-card rounded-lg shadow-md overflow-hidden transition-all duration-200 hover:shadow-lg mb-6 cursor-pointer";
+            articleDiv.addEventListener('click', () => openArticleModal(item, selectedTopic));
 
-                // Use article.source.name instead of article.source
-                const authorElement = article.author ? `<p class="text-sm text-gray-500 dark:text-gray-400">By ${article.author}</p>` : '';
-                const sourceName = article.source && article.source.name ? article.source.name : 'Unknown Source';
-                const imageElement = article.urlToImage ? `<img src="${article.urlToImage}" alt="${article.title}" class="w-full h-48 object-cover">` : `<div class="w-full h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400">No Image Available</div>`;
+            let title, description, pubDate, sourceName, author, link, imageUrl;
 
+             switch (selectedTopic) {
+                case 'ai':
+                    title = item.querySelector('title')?.textContent || 'No Title';
+                    description = item.querySelector('description')?.textContent || 'No description available.';
+                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
+                    sourceName = "MIT Technology Review";
+                    author = item.querySelector('dc\\:creator')?.textContent || '';
+                    link = item.querySelector('link')?.textContent || '#';
+                    imageUrl = item.querySelector('enclosure')?.getAttribute('url') || null;
+                    break;
+                case 'mac':
+                    title = item.querySelector('title')?.textContent || 'No Title';
+                    description = item.querySelector('description')?.textContent || 'No description available.';
+                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
+                    sourceName = 'MacRumors';
+                    author = item.querySelector('creator')?.textContent || '';
+                    link = item.querySelector('link')?.textContent || '#';
+                    imageUrl = item.querySelector('enclosure')?.getAttribute('url') || null;
+                    break;
+                case 'sports':
+                    title = item.querySelector('title')?.textContent || 'No Title';
+                    description = item.querySelector('description')?.textContent || 'No description available.';
+                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
+                    sourceName = 'CBS Sports';
+                    author = item.querySelector('author')?.textContent || '';
+                    link = item.querySelector('link')?.textContent || '#';
+                    imageUrl = item.querySelector('media\\:content')?.getAttribute('url') || null;
+                    break;
+                case 'all':
+                default:
+                    title = item.querySelector('title')?.textContent || 'No Title';
+                    description = item.querySelector('description')?.textContent || 'No description available.';
+                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
+                    sourceName = 'Reuters';
+                    author = item.querySelector('author')?.textContent || '';
+                    link = item.querySelector('link')?.textContent || '#';
+                    imageUrl = item.querySelector('enclosure')?.getAttribute('url') || null;
+                    break;
+             }
+            const authorElement = author ? `<p class="text-sm text-gray-500 dark:text-gray-400">By ${author}</p>` : '';
+            const imageElement = imageUrl ? `<img src="${imageUrl}" alt="${title}" class="w-full h-48 object-cover">` : `<div class="w-full h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400">No Image Available</div>`;
 
-                articleDiv.innerHTML = `
-                    ${imageElement}
-                    <div class="p-6 space-y-4">
-                        <h3 class="text-2xl font-bold">${article.title}</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Source: ${sourceName}</p>
-                        ${authorElement}
-                        <p class="text-gray-700 dark:text-gray-300">${article.description || 'No description available.'}</p>
-                    </div>
-                `;
-                return articleDiv;
-            }
-            catch(error){
-                console.error("Error in createArticleElement", error);
-                throw error; // re-throw the error so it's caught in fetchAndDisplayArticles
-            }
-
+            articleDiv.innerHTML = `
+                ${imageElement}
+                <div class="p-6 space-y-4">
+                    <h3 class="text-2xl font-bold">${title}</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Source: ${sourceName}</p>
+                    ${authorElement}
+                    <p class="text-gray-700 dark:text-gray-300">${description}</p>
+                </div>
+            `;
+            return articleDiv;
         };
 
-        const openArticleModal = (article) => {
-            modalTitle.textContent = article.title;
-            modalSource.textContent = article.source.name; // Use article.source.name here as well
-            modalAuthor.textContent = article.author ? `By ${article.author}` : '';
-            modalOriginalLink.href = article.url;
+        const openArticleModal = (item, selectedTopic) => {
+             let title, description, pubDate, sourceName, author, link;
 
-             // Format the content with paragraphs.  If article.content is not available, use description
-            const contentToDisplay = article.content || article.description || "No content available.";
-            const formattedContent = contentToDisplay
+            switch (selectedTopic) {
+                case 'ai':
+                    title = item.querySelector('title')?.textContent || 'No Title';
+                    description = item.querySelector('description')?.textContent || 'No description available.';
+                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
+                    sourceName = "MIT Technology Review";
+                    author = item.querySelector('dc\\:creator')?.textContent || '';
+                    link = item.querySelector('link')?.textContent || '#';
+                    break;
+                case 'mac':
+                    title = item.querySelector('title')?.textContent || 'No Title';
+                    description = item.querySelector('description')?.textContent || 'No description available.';
+                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
+                    sourceName = 'MacRumors';
+                    author = item.querySelector('creator')?.textContent || '';
+                    link = item.querySelector('link')?.textContent || '#';
+                    break;
+                case 'sports':
+                    title = item.querySelector('title')?.textContent || 'No Title';
+                    description = item.querySelector('description')?.textContent || 'No description available.';
+                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
+                    sourceName = 'CBS Sports';
+                    author = item.querySelector('author')?.textContent || '';
+                    link = item.querySelector('link')?.textContent || '#';
+                    break;
+                case 'all':
+                default:
+                    title = item.querySelector('title')?.textContent || 'No Title';
+                    description = item.querySelector('description')?.textContent || 'No description available.';
+                    pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
+                    sourceName = 'Reuters';
+                    author = item.querySelector('author')?.textContent || '';
+                    link = item.querySelector('link')?.textContent || '#';
+                    break;
+            }
+
+            modalTitle.textContent = title;
+            modalSource.textContent = sourceName;
+            modalAuthor.textContent = author ? `By ${author}` : '';
+            modalOriginalLink.href = link;
+            const formattedContent = description
                 .split('\n\n')
                 .filter(para => para.trim() !== '')
                 .map(para => `<p class="mb-4">${para.trim()}</p>`)
                 .join('');
             modalContent.innerHTML = `<div class="space-y-4">${formattedContent}</div>`;
-
             articleModal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
         };
@@ -419,11 +467,6 @@
 
         // Initial fetch
         document.addEventListener('DOMContentLoaded', () => {
-            if (NEWS_API_KEY === 'YOUR_NEWS_API_KEY') {
-                errorContainer.classList.remove('hidden');
-                errorMessageDisplay.textContent = 'Please replace "YOUR_NEWS_API_KEY" with your actual News API key!';
-                return;
-            }
             fetchAndDisplayArticles(topicDropdown.value);
         });
     </script>
