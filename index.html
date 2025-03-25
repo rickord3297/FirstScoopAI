@@ -318,15 +318,15 @@
                     break;
             }
 
-            const rssUrls = rssUrl.split(',');
+            const rssUrls = rssUrl.split(','); // Split the URLs into an array
             const allItems = [];
 
             try {
                 // Fetch articles from all provided RSS feeds
-                await Promise.all(rssUrls.map(async (url) => {
+                for (const url of rssUrls) { // Change to a for...of loop to handle async correctly
                     const items = await fetchRssFeed(url);
-                    allItems.push(...items);
-                }));
+                    allItems.push(...items);  // Spread the items into the allItems array
+                }
 
                 if (allItems && allItems.length > 0) {
                     // Combine and sort articles by publication date
