@@ -291,41 +291,80 @@
             errorContainer.classList.add('hidden');
             articlePreviewsContainer.innerHTML = ''; // Clear previous articles
 
-            let rssUrl = '';
+            let rssUrls = [];
             let topicName = '';
 
-            switch (selectedTopic) {
+             switch (selectedTopic) {
                 case 'ai':
-                    rssUrl = 'https://www.technologyreview.com/feed/';  // MIT Technology Review
-                    rssUrl += ',https://www.wired.com/feed/rss';        // Wired
+                    rssUrls = [
+                        'https://www.technologyreview.com/feed/',
+                        'https://www.wired.com/feed/rss',
+                        'https://www.theverge.com/rss/index.xml',
+                        'https://www.engadget.com/rss-ai.xml',
+                        'https://www.nytimes.com/topic/subject/artificial-intelligence/rss.xml',
+                        'https://www.newscientist.com/subject/artificial-intelligence/feed/',
+                        'https://www.bbc.co.uk/news/technology/ai/index.xml',
+                        'https://www.economist.com/science-and-technology/rss.xml',
+                        'https://www.ft.com/stream/world-news-about-artificial-intelligence',
+                        'https://www.ai.gov/rss/updates.xml'
+                    ];
                     topicName = "Artificial Intelligence";
                     break;
                 case 'mac':
-                    rssUrl = 'https://www.macrumors.com/feed/';      // MacRumors
-                    rssUrl += ',https://www.theverge.com/rss/index.xml';  // The Verge
+                    rssUrls = [
+                        'https://www.macrumors.com/feed/',
+                        'https://www.theverge.com/rss/index.xml',
+                        'https://www.engadget.com/rss-mac.xml',
+                        'https://www.cnet.com/rss/news/',
+                        'https://www.techradar.com/rss/news',
+                        'https://www.imore.com/feed',
+                        'https://9to5mac.com/feed/',
+                        'https://www.macworld.com/feed.xml',
+                        'https://arstechnica.com/feed/',
+                        'https://www.bloomberg.com/feeds/technology.xml'
+                    ];
                     topicName = "Mac";
                     break;
                 case 'sports':
-                    rssUrl = 'https://www.cbssports.com/rss/headlines/';  // CBS Sports
-                    rssUrl += ',https://www.espn.com/espn/rss/news';    // ESPN
+                    rssUrls = [
+                        'https://www.cbssports.com/rss/headlines/',
+                        'https://www.espn.com/espn/rss/news',
+                        'https://sports.yahoo.com/rss/',
+                        'https://www.si.com/rss/news.xml',
+                        'https://www.nbcsports.com/rss/home',
+                        'https://www.foxsports.com/rss.xml',
+                        'https://www.skysports.com/rss/0',
+                        'https://www.theguardian.com/sport/rss',
+                        'https://www.bbc.co.uk/sport/0/rss.xml',
+                        'https://www.nytimes.com/section/sports/rss.xml'
+                    ];
                     topicName = "Sports";
                     break;
                 case 'all':
                 default:
-                    rssUrl = 'https://www.reuters.com/arc/outbound/rss/0,,M.xml';  // Reuters
-                    rssUrl += ',http://rss.cnn.com/rss/cnn_topstories.rss'; // CNN Top Stories
+                    rssUrls = [
+                        'https://www.reuters.com/arc/outbound/rss/0,,M.xml',
+                        'http://rss.cnn.com/rss/cnn_topstories.rss',
+                        'https://www.bbc.co.uk/news/rss.xml',
+                        'https://www.nytimes.com/rss/homepage.xml',
+                        'https://www.theguardian.com/international/rss',
+                        'https://www.washingtonpost.com/rss/world',
+                        'https://www.hindustantimes.com/rss/topnews',
+                        'https://www.theglobeandmail.com/rss/world/',
+                        'https://www.aljazeera.com/xml/rss/all.xml',
+                        'https://www.smh.com.au/rss/feed.xml'
+                    ];
                     topicName = "Top Stories";
                     break;
             }
 
-            const rssUrls = rssUrl.split(','); // Split the URLs into an array
             const allItems = [];
 
             try {
                 // Fetch articles from all provided RSS feeds
-                for (const url of rssUrls) { // Change to a for...of loop to handle async correctly
+                for (const url of rssUrls) {
                     const items = await fetchRssFeed(url);
-                    allItems.push(...items);  // Spread the items into the allItems array
+                    allItems.push(...items);
                 }
 
                 if (allItems && allItems.length > 0) {
@@ -376,15 +415,15 @@
 
             switch (selectedTopic) {
                 case 'ai':
-                    sourceName = item.querySelector('source')?.textContent || 'MIT Technology Review, Wired';
+                    sourceName = item.querySelector('source')?.textContent || 'Various Sources';
                     imageUrl = item.querySelector('enclosure')?.getAttribute('url') || null;
                     break;
                 case 'mac':
-                    sourceName = item.querySelector('source')?.textContent || 'MacRumors, The Verge';
+                    sourceName = item.querySelector('source')?.textContent || 'Various Sources';
                      imageUrl = item.querySelector('enclosure')?.getAttribute('url') || null;
                     break;
                 case 'sports':
-                    sourceName = item.querySelector('source')?.textContent || 'CBS Sports, ESPN';
+                    sourceName = item.querySelector('source')?.textContent || 'Various Sources';
                     imageUrl = item.querySelector('media\\:content')?.getAttribute('url') || null;
                     break;
                 case 'all':
@@ -396,13 +435,16 @@
             const authorElement = author ? `<p class="text-sm text-gray-500 dark:text-gray-400">By ${author}</p>` : '';
             const imageElement = imageUrl ? `<img src="${imageUrl}" alt="${title}" class="w-full h-48 object-cover">` : `<div class="w-full h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400">No Image Available</div>`;
 
+            // Generate summary
+            const summary = generateSummary(description);
+
             articleDiv.innerHTML = `
                 ${imageElement}
                 <div class="p-6 space-y-4">
                     <h3 class="text-2xl font-bold">${title}</h3>
                     <p class="text-sm text-gray-500 dark:text-gray-400">Source: ${sourceName}</p>
                     ${authorElement}
-                    <p class="text-gray-700 dark:text-gray-300">${description}</p>
+                    <p class="text-gray-700 dark:text-gray-300">${summary}</p>
                 </div>
             `;
             return articleDiv;
@@ -419,17 +461,17 @@
 
              switch (selectedTopic) {
                 case 'ai':
-                    sourceName =  'MIT Technology Review, Wired';
+                    sourceName =  'MIT Technology Review, Wired, The Verge, Engadget, NYTimes, New Scientist, BBC, The Economist, FT, AI.gov';
                     break;
                 case 'mac':
-                     sourceName = 'MacRumors, The Verge';
+                     sourceName = 'MacRumors, The Verge, Engadget, CNET, TechRadar, iMore, 9to5Mac, Macworld, Ars Technica, Bloomberg';
                     break;
                 case 'sports':
-                     sourceName = 'CBS Sports, ESPN';
+                     sourceName = 'CBS Sports, ESPN, Yahoo Sports, SI, NBC Sports, Fox Sports, Sky Sports, The Guardian, BBC, NYTimes';
                     break;
                 case 'all':
                 default:
-                    sourceName = 'Various Sources';
+                    sourceName = 'Reuters, CNN, BBC, NYTimes, The Guardian, Washington Post, Hindustan Times, The Globe and Mail, Al Jazeera, Sydney Morning Herald';
                     break;
             }
 
@@ -441,28 +483,4 @@
                 .split('\n\n')
                 .filter(para => para.trim() !== '')
                 .map(para => `<p class="mb-4">${para.trim()}</p>`)
-                .join('');
-            modalContent.innerHTML = `<div class="space-y-4">${formattedContent}</div>`;
-            articleModal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-        };
-
-        // Apply custom theme on page load if it is set
-        if (savedTheme === 'custom') {
-            const storedCustomColors = localStorage.getItem('customColors');
-            if (storedCustomColors) {
-                customColors = JSON.parse(storedCustomColors);
-                bgColorInput.value = customColors.bgColor;
-                textColorInput.value = customColors.textColor;
-                linkColorInput.value = customColors.linkColor;
-                applyCustomTheme();
-            }
-        }
-
-        // Initial fetch
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchAndDisplayArticles(topicDropdown.value);
-        });
-    </script>
-</body>
-</html>
+                .join('
