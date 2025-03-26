@@ -98,7 +98,7 @@
             <div class="flex gap-4 flex-wrap justify-center">
                 <select id="topic-dropdown" class="w-[180px] bg-white text-black border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                     <option value="all">All Topics</option>
-                    <option value="ai">Artificial Intelligence</option>
+                    <option value="ai">AI News</option>
                     <option value="mac">Mac</option>
                     <option value="sports">Sports</option>
                 </select>
@@ -217,7 +217,7 @@
                 document.documentElement.className = selectedTheme;
                 localStorage.setItem('theme', selectedTheme);
                 //remove custom inline styles when switching from custom to another theme.
-                if(selectedTheme !== 'custom'){
+                if (selectedTheme !== 'custom') {
                     document.documentElement.style.removeProperty('--background-color');
                     document.documentElement.style.removeProperty('--text-color');
                     document.documentElement.style.removeProperty('--link-color');
@@ -294,7 +294,7 @@
             let rssUrls = [];
             let topicName = '';
 
-             switch (selectedTopic) {
+            switch (selectedTopic) {
                 case 'ai':
                     rssUrls = [
                         'https://www.technologyreview.com/feed/',
@@ -308,11 +308,12 @@
                         'https://www.ft.com/stream/world-news-about-artificial-intelligence',
                         'https://www.ai.gov/rss/updates.xml'
                     ];
-                    topicName = "Artificial Intelligence";
+                    topicName = "AI News";
                     break;
                 case 'mac':
                     rssUrls = [
                         'https://www.macrumors.com/feed/',
+                        'http://feeds.macrumors.com/MacRumors-All',
                         'https://www.theverge.com/rss/index.xml',
                         'https://www.engadget.com/rss-mac.xml',
                         'https://www.cnet.com/rss/news/',
@@ -359,12 +360,18 @@
             }
 
             const allItems = [];
+            let errors = []; // Array to store any errors that occur during fetching
 
             try {
                 // Fetch articles from all provided RSS feeds
                 for (const url of rssUrls) {
-                    const items = await fetchRssFeed(url);
-                    allItems.push(...items);
+                    try {
+                        const items = await fetchRssFeed(url);
+                        allItems.push(...items);
+                    } catch (error) {
+                        errors.push({ url, error }); // Store the URL and the error
+                        console.error(`Failed to fetch from ${url}: ${error.message}`);
+                    }
                 }
 
                 if (allItems && allItems.length > 0) {
@@ -384,8 +391,7 @@
                             console.error("Error creating article element:", e, item);
                         }
                     });
-                }
-                 else {
+                } else {
                     articlePreviewsContainer.innerHTML = `<div class="text-gray-500 dark:text-gray-400 py-8 text-center">No articles found for ${topicName}.</div>`;
                 }
 
@@ -395,6 +401,15 @@
                 console.error("Error fetching or processing articles:", error);
             } finally {
                 loadingIndicator.classList.add('hidden');
+                if (errors.length > 0) {
+                    // Display errors, you can show a message to the user or log them
+                    let errorString = "The following feeds could not be loaded:<br>";
+                    errors.forEach(e => {
+                        errorString += `${e.url}: ${e.error.message}<br>`;
+                    });
+                    errorContainer.classList.remove('hidden');
+                    errorMessageDisplay.innerHTML = errorString;
+                }
             }
         };
 
@@ -420,7 +435,7 @@
                     break;
                 case 'mac':
                     sourceName = item.querySelector('source')?.textContent || 'Various Sources';
-                     imageUrl = item.querySelector('enclosure')?.getAttribute('url') || null;
+                    imageUrl = item.querySelector('enclosure')?.getAttribute('url') || null;
                     break;
                 case 'sports':
                     sourceName = item.querySelector('source')?.textContent || 'Various Sources';
@@ -459,28 +474,12 @@
             link = item.querySelector('link')?.textContent || '#';
             author = item.querySelector('author')?.textContent || item.querySelector('dc\\:creator')?.textContent || '';
 
-             switch (selectedTopic) {
+            switch (selectedTopic) {
                 case 'ai':
-                    sourceName =  'MIT Technology Review, Wired, The Verge, Engadget, NYTimes, New Scientist, BBC, The Economist, FT, AI.gov';
+                    sourceName = 'MIT Technology Review, Wired, The Verge, Engadget, NYTimes, New Scientist, BBC, The Economist, FT, AI.gov';
                     break;
                 case 'mac':
-                     sourceName = 'MacRumors, The Verge, Engadget, CNET, TechRadar, iMore, 9to5Mac, Macworld, Ars Technica, Bloomberg';
+                    sourceName = 'MacRumors, The Verge, Engadget, CNET, TechRadar, iMore, 9to5Mac, Macworld, Ars Technica, Bloomberg';
                     break;
                 case 'sports':
-                     sourceName = 'CBS Sports, ESPN, Yahoo Sports, SI, NBC Sports, Fox Sports, Sky Sports, The Guardian, BBC, NYTimes';
-                    break;
-                case 'all':
-                default:
-                    sourceName = 'Reuters, CNN, BBC, NYTimes, The Guardian, Washington Post, Hindustan Times, The Globe and Mail, Al Jazeera, Sydney Morning Herald';
-                    break;
-            }
-
-            modalTitle.textContent = title;
-            modalSource.textContent = sourceName;
-            modalAuthor.textContent =  author ? `By ${author}` : '';
-            modalOriginalLink.href = link;
-            const formattedContent = description
-                .split('\n\n')
-                .filter(para => para.trim() !== '')
-                .map(para => `<p class="mb-4">${para.trim()}</p>`)
-                .join('
+                    sourceName = 'CBS Sports, ESPN, Yahoo Sports, SI, NBC Sports, 
