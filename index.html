@@ -291,99 +291,36 @@
             errorContainer.classList.add('hidden');
             articlePreviewsContainer.innerHTML = ''; // Clear previous articles
 
-            let rssUrls = [];
+            let apiUrl = `/api/articles?topic=${selectedTopic}`; // Use our server endpoint
             let topicName = '';
 
-            switch (selectedTopic) {
+             switch (selectedTopic) {
                 case 'ai':
-                    rssUrls = [
-                        'https://www.technologyreview.com/feed/',
-                        'https://www.wired.com/feed/rss',
-                        'https://www.theverge.com/rss/index.xml',
-                        'https://www.engadget.com/rss-ai.xml',
-                        'https://www.nytimes.com/topic/subject/artificial-intelligence/rss.xml',
-                        'https://www.newscientist.com/subject/artificial-intelligence/feed/',
-                        'https://www.bbc.co.uk/news/technology/ai/index.xml',
-                        'https://www.economist.com/science-and-technology/rss.xml',
-                        'https://www.ft.com/stream/world-news-about-artificial-intelligence',
-                        'https://www.ai.gov/rss/updates.xml'
-                    ];
                     topicName = "AI News";
                     break;
                 case 'mac':
-                    rssUrls = [
-                        'https://www.macrumors.com/feed/',
-                        'http://feeds.macrumors.com/MacRumors-All',
-                        'https://www.theverge.com/rss/index.xml',
-                        'https://www.engadget.com/rss-mac.xml',
-                        'https://www.cnet.com/rss/news/',
-                        'https://www.techradar.com/rss/news',
-                        'https://www.imore.com/feed',
-                        'https://9to5mac.com/feed/',
-                        'https://www.macworld.com/feed.xml',
-                        'https://arstechnica.com/feed/',
-                        'https://www.bloomberg.com/feeds/technology.xml'
-                    ];
                     topicName = "Mac";
                     break;
                 case 'sports':
-                    rssUrls = [
-                        'https://www.cbssports.com/rss/headlines/',
-                        'https://www.espn.com/espn/rss/news',
-                        'https://sports.yahoo.com/rss/',
-                        'https://www.si.com/rss/news.xml',
-                        'https://www.nbcsports.com/rss/home',
-                        'https://www.foxsports.com/rss.xml',
-                        'https://www.skysports.com/rss/0',
-                        'https://www.theguardian.com/sport/rss',
-                        'https://www.bbc.co.uk/sport/0/rss.xml',
-                        'https://www.nytimes.com/section/sports/rss.xml'
-                    ];
                     topicName = "Sports";
                     break;
                 case 'all':
                 default:
-                    rssUrls = [
-                        'https://www.reuters.com/arc/outbound/rss/0,,M.xml',
-                        'http://rss.cnn.com/rss/cnn_topstories.rss',
-                        'https://www.bbc.co.uk/news/rss.xml',
-                        'https://www.nytimes.com/rss/homepage.xml',
-                        'https://www.theguardian.com/international/rss',
-                        'https://www.washingtonpost.com/rss/world',
-                        'https://www.hindustantimes.com/rss/topnews',
-                        'https://www.theglobeandmail.com/rss/world/',
-                        'https://www.aljazeera.com/xml/rss/all.xml',
-                        'https://www.smh.com.au/rss/feed.xml'
-                    ];
                     topicName = "Top Stories";
                     break;
             }
 
-            const allItems = [];
-            let errors = []; // Array to store any errors that occur during fetching
-
             try {
-                // Fetch articles from all provided RSS feeds
-                for (const url of rssUrls) {
-                    try {
-                        const items = await fetchRssFeed(url);
-                        allItems.push(...items);
-                    } catch (error) {
-                        errors.push({ url, error }); // Store the URL and the error
-                        console.error(`Failed to fetch from ${url}: ${error.message}`);
-                    }
+                // Fetch articles from our server
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch articles: ${response.status}`);
                 }
+                const data = await response.json();
 
-                if (allItems && allItems.length > 0) {
-                    // Combine and sort articles by publication date
-                    allItems.sort((a, b) => {
-                        const dateA = new Date(a.querySelector('pubDate')?.textContent || '');
-                        const dateB = new Date(b.querySelector('pubDate')?.textContent || '');
-                        return dateB.getTime() - dateA.getTime(); // Sort descending
-                    });
-
+                if (data && data.length > 0) {
                     // Display the articles
-                    allItems.forEach(item => {
+                    data.forEach(item => {
                         try {
                             const articleElement = createArticleElement(item, selectedTopic);
                             articlePreviewsContainer.appendChild(articleElement);
@@ -401,15 +338,6 @@
                 console.error("Error fetching or processing articles:", error);
             } finally {
                 loadingIndicator.classList.add('hidden');
-                if (errors.length > 0) {
-                    // Display errors, you can show a message to the user or log them
-                    let errorString = "The following feeds could not be loaded:<br>";
-                    errors.forEach(e => {
-                        errorString += `${e.url}: ${e.error.message}<br>`;
-                    });
-                    errorContainer.classList.remove('hidden');
-                    errorMessageDisplay.innerHTML = errorString;
-                }
             }
         };
 
@@ -421,30 +349,27 @@
             let title, description, pubDate, sourceName, author, link, imageUrl;
 
             // Extract data, handling potential missing elements
-            title = item.querySelector('title')?.textContent || 'No Title';
-            description = item.querySelector('description')?.textContent || 'No description available.';
-            pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
-            link = item.querySelector('link')?.textContent || '#';
-            author = item.querySelector('author')?.textContent || item.querySelector('dc\\:creator')?.textContent || '';
+            title = item.title || 'No Title';
+            description = item.description || 'No description available.';
+            pubDate = item.pubDate || 'Unknown date';
+            link = item.link || '#';
+            author = item.author || '';
+            imageUrl = item.imageUrl || null;
 
 
             switch (selectedTopic) {
                 case 'ai':
-                    sourceName = item.querySelector('source')?.textContent || 'Various Sources';
-                    imageUrl = item.querySelector('enclosure')?.getAttribute('url') || null;
+                    sourceName =  'Various Sources';
                     break;
                 case 'mac':
-                    sourceName = item.querySelector('source')?.textContent || 'Various Sources';
-                    imageUrl = item.querySelector('enclosure')?.getAttribute('url') || null;
+                    sourceName = 'Various Sources';
                     break;
-                case 'sports':
-                    sourceName = item.querySelector('source')?.textContent || 'Various Sources';
-                    imageUrl = item.querySelector('media\\:content')?.getAttribute('url') || null;
+                 case 'sports':
+                    sourceName = 'Various Sources';
                     break;
                 case 'all':
                 default:
-                    sourceName = item.querySelector('source')?.textContent || 'Various Sources';
-                    imageUrl = item.querySelector('enclosure')?.getAttribute('url') || null;
+                    sourceName = 'Various Sources';
                     break;
             }
             const authorElement = author ? `<p class="text-sm text-gray-500 dark:text-gray-400">By ${author}</p>` : '';
@@ -468,11 +393,11 @@
         const openArticleModal = (item, selectedTopic) => {
             let title, description, pubDate, sourceName, author, link;
 
-            title = item.querySelector('title')?.textContent || 'No Title';
-            description = item.querySelector('description')?.textContent || 'No description available.';
-            pubDate = item.querySelector('pubDate')?.textContent || 'Unknown date';
-            link = item.querySelector('link')?.textContent || '#';
-            author = item.querySelector('author')?.textContent || item.querySelector('dc\\:creator')?.textContent || '';
+             title = item.title || 'No Title';
+            description = item.description || 'No description available.';
+            pubDate = item.pubDate || 'Unknown date';
+            link = item.link || '#';
+            author = item.author || '';
 
             switch (selectedTopic) {
                 case 'ai':
@@ -482,4 +407,34 @@
                     sourceName = 'MacRumors, The Verge, Engadget, CNET, TechRadar, iMore, 9to5Mac, Macworld, Ars Technica, Bloomberg';
                     break;
                 case 'sports':
-                    sourceName = 'CBS Sports, ESPN, Yahoo Sports, SI, NBC Sports, 
+                   sourceName = 'CBS Sports, ESPN, Yahoo Sports, SI, NBC Sports, Fox Sports, Sky Sports, The Guardian, BBC Sport, NYTimes';
+                    break;
+                case 'all':
+                default:
+                    sourceName = 'Reuters, CNN, BBC, NYTimes, The Guardian, Washington Post, Hindustan Times, The Globe and Mail, Al Jazeera, Sydney Morning Herald';
+                    break;
+            }
+
+            modalTitle.textContent = title;
+            modalSource.textContent = sourceName;
+            modalAuthor.textContent = author ? ` By ${author}` : '';
+            modalOriginalLink.href = link;
+            modalContent.innerHTML = description;
+            articleModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        };
+
+        function generateSummary(text) {
+            if (!text) return "";
+            const words = text.trim().split(' ');
+            if (words.length > 20) {
+                return words.slice(0, 20).join(' ') + '...';
+            }
+            return text;
+        }
+
+        // Initial fetch
+        fetchAndDisplayArticles(topicDropdown.value);
+    </script>
+</body>
+</html>
