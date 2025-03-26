@@ -268,33 +268,15 @@
 
         }
 
-        // Helper function to fetch and parse RSS feed
-        const fetchRssFeed = async (url) => {
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch RSS feed: ${response.status}`);
-                }
-                const text = await response.text();
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(text, "text/xml");
-                const items = Array.from(xmlDoc.querySelectorAll('channel > item'));
-                return items;
-            } catch (error) {
-                console.error("Error fetching RSS feed:", error);
-                throw error; // Re-throw to be caught by fetchAndDisplayArticles
-            }
-        };
-
         const fetchAndDisplayArticles = async (selectedTopic) => {
             loadingIndicator.classList.remove('hidden');
             errorContainer.classList.add('hidden');
-            articlePreviewsContainer.innerHTML = ''; // Clear previous articles
+            articlePreviewsContainer.innerHTML = '';
 
-            let apiUrl = `/api/articles?topic=${selectedTopic}`; // Use our server endpoint
+            let apiUrl = `/api/articles?topic=${selectedTopic}`;
             let topicName = '';
 
-             switch (selectedTopic) {
+            switch (selectedTopic) {
                 case 'ai':
                     topicName = "AI News";
                     break;
@@ -311,7 +293,6 @@
             }
 
             try {
-                // Fetch articles from our server
                 const response = await fetch(apiUrl);
                 if (!response.ok) {
                     throw new Error(`Failed to fetch articles: ${response.status}`);
@@ -319,7 +300,6 @@
                 const data = await response.json();
 
                 if (data && data.length > 0) {
-                    // Display the articles
                     data.forEach(item => {
                         try {
                             const articleElement = createArticleElement(item, selectedTopic);
@@ -348,7 +328,6 @@
 
             let title, description, pubDate, sourceName, author, link, imageUrl;
 
-            // Extract data, handling potential missing elements
             title = item.title || 'No Title';
             description = item.description || 'No description available.';
             pubDate = item.pubDate || 'Unknown date';
@@ -359,12 +338,12 @@
 
             switch (selectedTopic) {
                 case 'ai':
-                    sourceName =  'Various Sources';
+                    sourceName = 'Various Sources';
                     break;
                 case 'mac':
                     sourceName = 'Various Sources';
                     break;
-                 case 'sports':
+                case 'sports':
                     sourceName = 'Various Sources';
                     break;
                 case 'all':
@@ -393,7 +372,7 @@
         const openArticleModal = (item, selectedTopic) => {
             let title, description, pubDate, sourceName, author, link;
 
-             title = item.title || 'No Title';
+            title = item.title || 'No Title';
             description = item.description || 'No description available.';
             pubDate = item.pubDate || 'Unknown date';
             link = item.link || '#';
@@ -407,7 +386,7 @@
                     sourceName = 'MacRumors, The Verge, Engadget, CNET, TechRadar, iMore, 9to5Mac, Macworld, Ars Technica, Bloomberg';
                     break;
                 case 'sports':
-                   sourceName = 'CBS Sports, ESPN, Yahoo Sports, SI, NBC Sports, Fox Sports, Sky Sports, The Guardian, BBC Sport, NYTimes';
+                    sourceName = 'CBS Sports, ESPN, Yahoo Sports, SI, NBC Sports, Fox Sports, Sky Sports, The Guardian, BBC Sport, NYTimes';
                     break;
                 case 'all':
                 default:
